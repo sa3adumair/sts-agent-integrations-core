@@ -63,9 +63,19 @@ class AzureWebApp(AgentCheck):
             for application_gateway in self.list_application_gateways(resource_group_name):
                 self.process_application_gateway(application_gateway, resource_group_name)
 
-            # service bus (resource type Microsoft.ServiceBus/namespaces)
-            for service_bus in self.list_service_buses(resource_group_name):
-                self.process_service_bus(service_bus, resource_group_name)
+            # service bus namespaces (resource type Microsoft.ServiceBus/namespaces)
+            for service_bus_namespace in self.list_service_bus_namespaces(resource_group_name):
+                self.process_service_bus_namespace(service_bus_namespace, resource_group_name)
+
+                service_bus_namespace = service_bus_namespace.name
+
+                # service bus queues
+                for queue in self.list_service_bus_queues(resource_group_name, service_bus_namespace):
+                    self.process_service_bus_queue(queue, resource_group_name, service_bus_namespace)
+
+                # service bus topics
+                for topic in self.list_service_bus_topics(resource_group_name, service_bus_namespace):
+                    self.process_service_bus_topic(topic, resource_group_name, service_bus_namespace)
 
             # other components, generic handling
             accepted_resource_types = """
@@ -135,13 +145,30 @@ class AzureWebApp(AgentCheck):
         """
         return self.network_client.application_gateways.list(resource_group_name)
 
-    def list_service_buses(self, resource_group_name):
+    def list_service_bus_namespaces(self, resource_group_name):
         """
         get list of service buses for the given resource group
         :param resource_group_name: str
         :return: list of azure.mgmt.servicebus.models.sb_namespace.SBNamespace
         """
         return self.service_bus_client.namespaces.list_by_resource_group(resource_group_name)
+
+    def list_service_bus_queues(self, resource_group_name, namespace_name):
+        """
+        get list of queues in the service bus namespace of the resource group
+        :param resource_group_name: str
+        :return: list of azure.mgmt.servicebus.models.sb_queue.SBQueue
+        """
+        return self.service_bus_client.queues.list_by_namespace(resource_group_name, namespace_name)
+
+    def list_service_bus_topics(self, resource_group_name, namespace_name):
+        """
+        get list of topics in the service bus namespace of the resource group
+        :param resource_group_name:
+        :param namespace_name:
+        :return: list of azure.mgmt.servicebus.models.sb_topic.SBTopic
+        """
+        return self.service_bus_client.topics.list_by_namespace(resource_group_name, namespace_name)
 
     def process_web_app(self, web_app, resource_group_name):
         """
@@ -207,27 +234,93 @@ class AzureWebApp(AgentCheck):
 
         self.component(self.instance_key, id, component_type_obj, data)
 
-    def process_service_bus(self, service_bus, resource_group_name):
+    def process_service_bus_namespace(self, service_bus_namespace, resource_group_name):
         """
         process service bus
-        :param service_bus: azure.mgmt.servicebus.models.sb_namespace.SBNamespace
+        :param service_bus_namespace: azure.mgmt.servicebus.models.sb_namespace.SBNamespace
         :param resource_group_name: str
         :return: nothing
         """
-        self.log.info("Processing service bus {}".format(service_bus.name))
-        self.log.debug("Service bus information: {}".format(service_bus))
+        self.log.info("Processing service bus namespace {}".format(service_bus_namespace.name))
+        self.log.debug("Service bus namespace information: {}".format(service_bus_namespace))
 
-        external_id = service_bus.name
+        external_id = service_bus_namespace.name
         data = {
-            'type': service_bus.type,
-            'location': service_bus.location,
-            'id': service_bus.id,
+            'type': service_bus_namespace.type,
+            'location': service_bus_namespace.location,
+            'id': service_bus_namespace.id,
             'resource_group': resource_group_name,
-            'service_bus_endpoint': service_bus.service_bus_endpoint,
-            'metric_id': service_bus.metric_id
+            'service_bus_endpoint': service_bus_namespace.service_bus_endpoint,
+            'metric_id': service_bus_namespace.metric_id
         }
         component_type_obj = {
             "name": "servicebus"
         }
 
         self.component(self.instance_key, external_id, component_type_obj, data)
+
+    def process_service_bus_queue(self, service_bus_queue, resource_group_name, service_bus_namespace):
+        """
+        process service bus queue
+        :param service_bus_queue: azure.mgmt.servicebus.models.sb_queue.SBQueue
+        :param resource_group_name: str
+        :param service_bus_namespace: str
+        :return: nothing
+        """
+        self.log.info("Processing service bus queue {}".format(service_bus_queue.name))
+        self.log.debug("Service bus queue information: {}".format(service_bus_queue))
+
+        external_id = service_bus_queue.name
+        data = {
+            'type': service_bus_queue.type,
+            'service_bus_namespace': service_bus_namespace,
+            'resource_group': resource_group_name,
+            'message_count': service_bus_queue.message_count,
+            'requires_duplicate_detection': service_bus_queue.requires_duplicate_detection,
+            'enable_partitioning': service_bus_queue.enable_partitioning,
+            'default_message_time_to_live': service_bus_queue.default_message_time_to_live,
+            'max_size_in_megabytes': service_bus_queue.max_size_in_megabytes
+        }
+        # TODO maybe put contents of service_bus_queue.count_details to a metric stream
+        component_type_obj = {
+            "name": "servicebus_queue"
+        }
+
+        self.component(self.instance_key, external_id, component_type_obj, data)
+        # relation from queue to namespace
+        self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
+
+    def process_service_bus_topic(self, service_bus_topic, resource_group_name, service_bus_namespace):
+        """
+        process service bus topic
+        :param service_bus_topic: azure.mgmt.servicebus.models.sb_topic.SBTopic
+        :param resource_group_name:  str
+        :param service_bus_namespace: str
+        :return: nothing
+        """
+        self.log.info("Processing service bus topic {}".format(service_bus_topic.name))
+        self.log.debug("Service bus topic information: {}".format(service_bus_topic))
+
+        external_id = service_bus_topic.name
+        data = {
+            'type': service_bus_topic.type,
+            'service_bus_namespace': service_bus_namespace,
+            'resource_group': resource_group_name,
+            'subscription_count': service_bus_topic.subscription_count,
+            'max_size_in_megabytes': service_bus_topic.max_size_in_megabytes,
+            'duplicate_detection_history_time_window': service_bus_topic.duplicate_detection_history_time_window,
+            'requires_duplicate_detection': service_bus_topic.requires_duplicate_detection,
+            'enable_batched_operations': service_bus_topic.enable_batched_operations,
+            'default_message_time_to_live': service_bus_topic.default_message_time_to_live,
+            'enable_partitioning': service_bus_topic.enable_partitioning,
+            'auto_delete_on_idle': service_bus_topic.auto_delete_on_idle,
+            'support_ordering': service_bus_topic.support_ordering,
+        }
+        # TODO maybe put contents of service_bus_topic.count_details to a metric stream
+        component_type_obj = {
+            "name": "servicebus_topic"
+        }
+
+        self.component(self.instance_key, external_id, component_type_obj, data)
+        # relation from topic to namespace
+        self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
