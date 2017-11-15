@@ -1,0 +1,2 @@
+# integration pip requirements
+azure-monitor==0.3.1

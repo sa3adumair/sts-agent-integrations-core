@@ -112,6 +112,8 @@ env:
     - TRAVIS_FLAVOR=twemproxy FLAVOR_VERSION=latest
     - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=4.1.7
     - TRAVIS_FLAVOR=varnish FLAVOR_VERSION=5.0.0
+    - TRAVIS_FLAVOR=azure_components FLAVOR_VERSION=latest
+    - TRAVIS_FLAVOR=azure_metrics FLAVOR_VERSION=latest
     # END OF TRAVIS MATRIX
 
 install:

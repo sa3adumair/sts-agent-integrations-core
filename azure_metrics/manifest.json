@@ -1,0 +1,12 @@
+{
+  "maintainer": "info@stackstate.com",
+  "manifest_version": "0.1.0",
+  "max_agent_version": "6.0.0",
+  "min_agent_version": "5.6.3",
+  "name": "azure_metrics",
+  "short_description": "azure_metrics description.",
+  "guid": "2f9644b6-1e78-45e1-916e-354adcd27196",
+  "support": "contrib",
+  "supported_os": ["linux","mac_os","windows"],
+  "version": "0.1.0"
+}

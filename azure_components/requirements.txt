@@ -1,0 +1,4 @@
+# integration pip requirements
+azure-mgmt-resource==1.2.2
+azure-mgmt-network==1.5.0
+azure-mgmt-web==0.34.1
