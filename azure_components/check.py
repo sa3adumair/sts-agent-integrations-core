@@ -7,6 +7,7 @@ from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 
 # project
+from azure.mgmt.servicebus import ServiceBusManagementClient
 from azure.mgmt.web import WebSiteManagementClient
 from checks import AgentCheck
 
@@ -45,6 +46,8 @@ class AzureWebApp(AgentCheck):
     resource_client = ResourceManagementClient(credentials, subscription_id)
     network_client = NetworkManagementClient(credentials, subscription_id)
     website_client = WebSiteManagementClient(credentials, subscription_id)
+    service_bus_client = ServiceBusManagementClient(credentials, subscription_id)
+
 
     def check(self, instance):
         for resource_group in self.resource_client.resource_groups.list():
@@ -60,11 +63,14 @@ class AzureWebApp(AgentCheck):
             for application_gateway in self.list_application_gateways(resource_group_name):
                 self.process_application_gateway(application_gateway, resource_group_name)
 
+            # service bus (resource type Microsoft.ServiceBus/namespaces)
+            for service_bus in self.list_service_buses(resource_group_name):
+                self.process_service_bus(service_bus, resource_group_name)
+
             # other components, generic handling
             accepted_resource_types = """
             resourceType eq 'microsoft.insights/components'
             or resourceType eq 'Microsoft.Relay/namespaces'
-            or resourceType eq 'Microsoft.ServiceBus/namespaces'
             or resourceType eq 'Microsoft.Storage/storageAccounts'
             """
             for resource in self.resource_client.resources.list_by_resource_group(resource_group_name, filter=accepted_resource_types):
@@ -80,7 +86,6 @@ class AzureWebApp(AgentCheck):
         return {
             "microsoft.relay/namespaces": "relay",
             "microsoft.insights/components": "insights",
-            "microsoft.servicebus/namespaces": "servicebus",
             "microsoft.storage/storageaccounts": "storage"
         }.get(resource_type.lower(), None)
 
@@ -92,7 +97,7 @@ class AzureWebApp(AgentCheck):
         :param resource_group_name: str
         :return: nothing
         """
-        self.log.info("Processing generic component {}".format(resource.name))
+        self.log.info("Processing generic component {} with type {}".format(resource.name, resource.type))
         self.log.debug("Generic component information: {}".format(resource))
 
         component_type = self.map_component_type(resource.type)
@@ -130,6 +135,14 @@ class AzureWebApp(AgentCheck):
         """
         return self.network_client.application_gateways.list(resource_group_name)
 
+    def list_service_buses(self, resource_group_name):
+        """
+        get list of service buses for the given resource group
+        :param resource_group_name: str
+        :return: list of azure.mgmt.servicebus.models.sb_namespace.SBNamespace
+        """
+        return self.service_bus_client.namespaces.list_by_resource_group(resource_group_name)
+
     def process_web_app(self, web_app, resource_group_name):
         """
         process web app / app service
@@ -138,7 +151,7 @@ class AzureWebApp(AgentCheck):
         :return: nothing
         """
         self.log.info("Processing web app {}".format(web_app.name))
-        self.log.info("Web app information: {}".format(web_app))
+        self.log.debug("Web app information: {}".format(web_app))
 
         id = web_app.name
 
@@ -154,8 +167,6 @@ class AzureWebApp(AgentCheck):
         }
 
         self.component(self.instance_key, id, component_type_obj, data)
-
-
 
     def process_application_gateway(self, application_gateway, resource_group_name):
         """
@@ -195,3 +206,28 @@ class AzureWebApp(AgentCheck):
                     data['backend_pool'].append({'fqdn': backend_address.fqdn})
 
         self.component(self.instance_key, id, component_type_obj, data)
+
+    def process_service_bus(self, service_bus, resource_group_name):
+        """
+        process service bus
+        :param service_bus: azure.mgmt.servicebus.models.sb_namespace.SBNamespace
+        :param resource_group_name: str
+        :return: nothing
+        """
+        self.log.info("Processing service bus {}".format(service_bus.name))
+        self.log.debug("Service bus information: {}".format(service_bus))
+
+        external_id = service_bus.name
+        data = {
+            'type': service_bus.type,
+            'location': service_bus.location,
+            'id': service_bus.id,
+            'resource_group': resource_group_name,
+            'service_bus_endpoint': service_bus.service_bus_endpoint,
+            'metric_id': service_bus.metric_id
+        }
+        component_type_obj = {
+            "name": "servicebus"
+        }
+
+        self.component(self.instance_key, external_id, component_type_obj, data)
