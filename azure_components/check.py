@@ -11,6 +11,8 @@ from azure.mgmt.servicebus import ServiceBusManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.web import WebSiteManagementClient
 from azure.storage import CloudStorageAccount
+from azure_mgmt import RelayManagementClient
+from azure_mgmt.models import Relaytype
 from checks import AgentCheck
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'azure'
@@ -50,6 +52,7 @@ class AzureWebApp(AgentCheck):
     website_client = WebSiteManagementClient(credentials, subscription_id)
     service_bus_client = ServiceBusManagementClient(credentials, subscription_id)
     storage_client = StorageManagementClient(credentials, subscription_id)
+    relay_client = RelayManagementClient(credentials, subscription_id)
 
     def check(self, instance):
         for resource_group in self.resource_client.resource_groups.list():
@@ -83,11 +86,13 @@ class AzureWebApp(AgentCheck):
             for storage_account in self.list_storage_accounts(resource_group_name):
                 self.process_storage_account(storage_account, resource_group_name)
 
+            # relay namespaces (resource type Microsoft.Relay/namespaces)
+            for relay_namespace in self.list_relay_namespaces(resource_group_name):
+                self.process_relay_namespace(relay_namespace, resource_group_name)
 
             # other components, generic handling
             accepted_resource_types = """
             resourceType eq 'microsoft.insights/components'
-            or resourceType eq 'Microsoft.Relay/namespaces'
             """
             for resource in self.resource_client.resources.list_by_resource_group(resource_group_name, filter=accepted_resource_types):
                 self.process_generic_component(resource, resource_group.name)
@@ -100,7 +105,6 @@ class AzureWebApp(AgentCheck):
         :return: str component_type or None when resource type was not matched
         """
         return {
-            "microsoft.relay/namespaces": "relay",
             "microsoft.insights/components": "insights",
         }.get(resource_type.lower(), None)
 
@@ -178,6 +182,32 @@ class AzureWebApp(AgentCheck):
         :return: list of azure.mgmt.storage.v2016_12_01.models.storage_account.StorageAccount'
         """
         return self.storage_client.storage_accounts.list_by_resource_group(resource_group_name)
+
+    def list_relay_namespaces(self, resource_group_name):
+        """
+        get list of relays in the resource group
+        :param resource_group_name:
+        :return: list of azure_mgmt.models.relay_namespace.RelayNamespace
+        """
+        return self.relay_client.namespaces.list_by_resource_group(resource_group_name)
+
+    def list_wcf_relays(self, relay_namespace_name, resource_group_name):
+        """
+        get list of wcf relays in the relay namespace in the resource group
+        :param relay_namespace_name: str
+        :param resource_group_name: str
+        :return: list of azure_mgmt.models.wcf_relay.WcfRelay
+        """
+        return self.relay_client.wcf_relays.list_by_namespace(resource_group_name, relay_namespace_name)
+
+    def list_hybrid_connections_relays(self, relay_namespace_name, resource_group_name):
+        """
+        get list of hybrid connection relays in the relay namespace in the resource group
+        :param relay_namespace_name: str
+        :param resource_group_name: str
+        :return: list of azure.mgmt.relay.models.HybridConnection
+        """
+        return self.relay_client.hybrid_connections.list_by_namespace(resource_group_name, relay_namespace_name)
 
     def process_web_app(self, web_app, resource_group_name):
         """
@@ -327,10 +357,9 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing storage account {}".format(storage_account.name))
         self.log.debug("Storage account information: {}".format(storage_account))
 
-
         def process_storage_services(storage_account_name, primary_endpoints, secondary_endpoints):
             """
-            process information storage service specific information about table and queue service
+            process storage service specific information about table and queue service
             :param primary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
             :param secondary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
             :param storage_account_name: str
@@ -396,3 +425,56 @@ class AzureWebApp(AgentCheck):
 
         # additional storage table and storage queue components
         process_storage_services(storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
+
+    def process_relay_namespace(self, relay_namespace, resource_group_name):
+        """
+        process relays in the namespace of the resource group
+        :param relay_namespace: azure_mgmt.models.relay_namespace.RelayNamespace
+        :param resource_group_name: str
+        :return: nothing
+        """
+        self.log.info("Processing relay namespace {}".format(relay_namespace.name))
+        self.log.debug("Relay namespace information: {}".format(relay_namespace))
+
+        relay_namespace_name = relay_namespace.name
+
+        for wcf_relay in self.list_wcf_relays(relay_namespace_name, resource_group_name):
+            # azure_mgmt.models.wcf_relay.WcfRelay
+            self.log.info("Processing WCF relay {}".format(wcf_relay.name))
+            self.log.debug("WCF relay information: {}".format(wcf_relay))
+
+            external_id = wcf_relay.name
+            data = {
+                'resource_group': resource_group_name,
+                'namespace': relay_namespace_name,
+                'relay_type': 'Http' if wcf_relay.relay_type == wcf_relay.relay_type == Relaytype.http else "NetTcp",
+                'requires_client_authorization': wcf_relay.requires_client_authorization,
+                'is_dynamic': wcf_relay.is_dynamic,
+                'listener_count': wcf_relay.listener_count,
+                'user_metadata': wcf_relay.user_metadata
+            }
+            self.component(self.instance_key, external_id, {"name": "relay_wcf"}, data)
+            self.relation(self.instance_key, relay_namespace_name, external_id, {"name": "has_relay"})
+
+        for hybrid_connection_relay in self.list_hybrid_connections_relays(relay_namespace_name, resource_group_name):
+            # azure_mgmt.models.hybrid_connection.HybridConnection
+            self.log.info("Processing hybrid connection relay {}".format(hybrid_connection_relay.name))
+            self.log.debug("hybrid connection relay information: {}".format(hybrid_connection_relay))
+
+            external_id = hybrid_connection_relay.name
+            data = {
+                'resource_group': resource_group_name,
+                'namespace': relay_namespace_name,
+                'listener_count': hybrid_connection_relay.listener_count,
+                'requires_client_authorization': hybrid_connection_relay.requires_client_authorization,
+                'user_metadata': hybrid_connection_relay.user_metadata
+            }
+            self.component(self.instance_key, external_id, {"name": "relay_hybrid_connection"}, data)
+            self.relation(self.instance_key, relay_namespace_name, external_id, {"name": "has_relay"})
+
+        external_id = relay_namespace_name
+        data = {
+            'resource_group': resource_group_name,
+            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), relay_namespace.tags.iteritems()))
+        }
+        self.component(self.instance_key, external_id, {'name': 'relay_namespace'}, data)
