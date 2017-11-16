@@ -354,9 +354,19 @@ class AzureWebApp(AgentCheck):
             'resource_group': resource_group_name,
             'primary_location': storage_account.primary_location,
             'secondary_location': storage_account.secondary_location,
-
+            'primary_endpoints': {
+                'queue': storage_account.primary_endpoints.queue,
+                'table': storage_account.primary_endpoints.table,
+                'blob': storage_account.primary_endpoints.blob,
+                'file': storage_account.primary_endpoints.file
+            },
+            'secondary_endpoints': {
+                'queue': storage_account.secondary_endpoints.queue,
+                'table': storage_account.secondary_endpoints.table,
+                'blob': storage_account.secondary_endpoints.blob,
+                'file': storage_account.secondary_endpoints.file
+            }
         }
-        # TODO process primary_endpoints and secondary_endpoints?
         component_type_obj = {
             "name": "storage_account"
         }
