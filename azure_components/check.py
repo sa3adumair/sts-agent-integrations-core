@@ -120,19 +120,14 @@ class AzureWebApp(AgentCheck):
             self.log.info("Skipping unhandled resource type, got: {}".format(resource.type))
             return
 
-        id = resource.name
-
+        external_id = resource.name
         data = {
             'type': resource.type,
             'location': resource.location,
             'id': resource.id,
             'resource_group': resource_group_name
         }
-        component_type_obj = {
-            "name": component_type
-        }
-
-        self.component(self.instance_key, id, component_type_obj, data)
+        self.component(self.instance_key, external_id, {"name": component_type}, data)
 
     def list_web_apps(self, resource_group_name):
         """
@@ -203,11 +198,7 @@ class AzureWebApp(AgentCheck):
             'resource_group': resource_group_name,
             'host_names': web_app.host_names
         }
-        component_type_obj = {
-            "name": "app"
-        }
-
-        self.component(self.instance_key, id, component_type_obj, data)
+        self.component(self.instance_key, id, {"name": "app"}, data)
 
     def process_application_gateway(self, application_gateway, resource_group_name):
         """
@@ -226,9 +217,6 @@ class AzureWebApp(AgentCheck):
             'id': application_gateway.id,
             'resource_group': resource_group_name
         }
-        component_type_obj = {
-            "name": "appgateway"
-        }
 
         # front end public ip
         public_ip = self.network_client.public_ip_addresses.get(resource_group_name, application_gateway.name)
@@ -246,7 +234,7 @@ class AzureWebApp(AgentCheck):
                 if backend_address.fqdn is not None:
                     data['backend_pool'].append({'fqdn': backend_address.fqdn})
 
-        self.component(self.instance_key, id, component_type_obj, data)
+        self.component(self.instance_key, id, {"name": "appgateway"}, data)
 
     def process_service_bus_namespace(self, service_bus_namespace, resource_group_name):
         """
@@ -267,11 +255,7 @@ class AzureWebApp(AgentCheck):
             'service_bus_endpoint': service_bus_namespace.service_bus_endpoint,
             'metric_id': service_bus_namespace.metric_id
         }
-        component_type_obj = {
-            "name": "servicebus"
-        }
-
-        self.component(self.instance_key, external_id, component_type_obj, data)
+        self.component(self.instance_key, external_id, {"name": "servicebus"}, data)
 
     def process_service_bus_queue(self, service_bus_queue, resource_group_name, service_bus_namespace):
         """
@@ -296,12 +280,7 @@ class AzureWebApp(AgentCheck):
             'max_size_in_megabytes': service_bus_queue.max_size_in_megabytes
         }
         # TODO maybe put contents of service_bus_queue.count_details to a metric stream
-        component_type_obj = {
-            "name": "servicebus_queue"
-        }
-
-        self.component(self.instance_key, external_id, component_type_obj, data)
-        # relation from queue to namespace
+        self.component(self.instance_key, external_id, {"name": "servicebus_queue"}, data)
         self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
 
     def process_service_bus_topic(self, service_bus_topic, resource_group_name, service_bus_namespace):
@@ -331,11 +310,7 @@ class AzureWebApp(AgentCheck):
             'support_ordering': service_bus_topic.support_ordering,
         }
         # TODO maybe put contents of service_bus_topic.count_details to a metric stream
-        component_type_obj = {
-            "name": "servicebus_topic"
-        }
-
-        self.component(self.instance_key, external_id, component_type_obj, data)
+        self.component(self.instance_key, external_id, {"name": "servicebus_topic"}, data)
         # relation from topic to namespace
         self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
 
@@ -414,11 +389,7 @@ class AzureWebApp(AgentCheck):
                 'file': storage_account.secondary_endpoints.file
             }
         }
-        component_type_obj = {
-            "name": "storage_account"
-        }
-
-        self.component(self.instance_key, external_id, component_type_obj, data)
+        self.component(self.instance_key, external_id, {"name": "storage_account"}, data)
 
         # additional storage table and storage queue components
         process_storage_services(storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
