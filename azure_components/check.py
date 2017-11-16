@@ -210,7 +210,7 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing application gateway {}".format(application_gateway.name))
         self.log.debug("Application gateway information: {}".format(application_gateway))
 
-        id = application_gateway.name
+        external_id = application_gateway.name
         data = {
             'type': application_gateway.type,
             'location': application_gateway.location,
@@ -234,7 +234,7 @@ class AzureWebApp(AgentCheck):
                 if backend_address.fqdn is not None:
                     data['backend_pool'].append({'fqdn': backend_address.fqdn})
 
-        self.component(self.instance_key, id, {"name": "appgateway"}, data)
+        self.component(self.instance_key, external_id, {"name": "appgateway"}, data)
 
     def process_service_bus_namespace(self, service_bus_namespace, resource_group_name):
         """
@@ -276,7 +276,7 @@ class AzureWebApp(AgentCheck):
             'message_count': service_bus_queue.message_count,
             'requires_duplicate_detection': service_bus_queue.requires_duplicate_detection,
             'enable_partitioning': service_bus_queue.enable_partitioning,
-            'default_message_time_to_live': service_bus_queue.default_message_time_to_live,
+            'default_message_time_to_live': str(service_bus_queue.default_message_time_to_live),
             'max_size_in_megabytes': service_bus_queue.max_size_in_megabytes
         }
         # TODO maybe put contents of service_bus_queue.count_details to a metric stream
@@ -295,18 +295,19 @@ class AzureWebApp(AgentCheck):
         self.log.debug("Service bus topic information: {}".format(service_bus_topic))
 
         external_id = service_bus_topic.name
+
         data = {
             'type': service_bus_topic.type,
             'service_bus_namespace': service_bus_namespace,
             'resource_group': resource_group_name,
             'subscription_count': service_bus_topic.subscription_count,
             'max_size_in_megabytes': service_bus_topic.max_size_in_megabytes,
-            'duplicate_detection_history_time_window': service_bus_topic.duplicate_detection_history_time_window,
+            'duplicate_detection_history_time_window': str(service_bus_topic.duplicate_detection_history_time_window),
             'requires_duplicate_detection': service_bus_topic.requires_duplicate_detection,
             'enable_batched_operations': service_bus_topic.enable_batched_operations,
-            'default_message_time_to_live': service_bus_topic.default_message_time_to_live,
+            'default_message_time_to_live': str(service_bus_topic.default_message_time_to_live),
             'enable_partitioning': service_bus_topic.enable_partitioning,
-            'auto_delete_on_idle': service_bus_topic.auto_delete_on_idle,
+            'auto_delete_on_idle': str(service_bus_topic.auto_delete_on_idle),
             'support_ordering': service_bus_topic.support_ordering,
         }
         # TODO maybe put contents of service_bus_topic.count_details to a metric stream
