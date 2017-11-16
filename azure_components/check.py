@@ -10,6 +10,7 @@ from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.servicebus import ServiceBusManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.web import WebSiteManagementClient
+from azure.storage import CloudStorageAccount
 from checks import AgentCheck
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'azure'
@@ -348,6 +349,52 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing storage account {}".format(storage_account.name))
         self.log.debug("Storage account information: {}".format(storage_account))
 
+
+        def process_storage_services(storage_account_name, primary_endpoints, secondary_endpoints):
+            """
+            process information storage service specific information about table and queue service
+            :param primary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
+            :param secondary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
+            :param storage_account_name: str
+            :return: nothing
+            """
+            # fetch keys that are known in the storage account
+            storage_account_keys = self.storage_client.storage_accounts.list_keys(resource_group_name, storage_account_name).keys
+            # list of azure.mgmt.storage.v2017_06_01.models.storage_account_key.StorageAccountKey
+
+            # use first key, if any, to fetch information about specific storage services
+            if not storage_account_keys:
+                self.log.info("No storage account keys found to fetch list of storage services.")
+            else:
+                storage_account_key = storage_account_keys[0].value
+                cloud_storage_account = CloudStorageAccount(storage_account_name, account_key=storage_account_key)
+
+                # TODO add blob and table storage services
+
+                # queues
+                for queue in cloud_storage_account.create_queue_service().list_queues():
+                    # azure.storage.queue.models.Queue
+                    self.log.info("Processing queue storage service {}".format(queue.name))
+                    external_id = queue.name
+                    data = {
+                        'primary_endpoint': "{}{}".format(primary_endpoints.queue, queue.name),
+                        'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name)
+                    }
+                    self.component(self.instance_key, external_id, {'name': 'storage_queue'}, data)
+                    self.relation(self.instance_key, storage_account_name, external_id, {'name': 'has_storage_queue'})
+
+                # tables
+                for table in cloud_storage_account.create_table_service().list_tables():
+                    # azure.storage.table.models.Table
+                    self.log.info("Processing table storage service {}".format(table.name))
+                    external_id = table.name
+                    data = {
+                        'primary_endpoint': "{}{}".format(primary_endpoints.table, table.name),
+                        'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name)
+                    }
+                    self.component(self.instance_key, external_id, {'name': 'storage_table'}, data)
+                    self.relation(self.instance_key, storage_account_name, external_id, {'name': 'has_storage_table'})
+
         external_id = storage_account.name
         data = {
             'type': storage_account.type,
@@ -372,3 +419,6 @@ class AzureWebApp(AgentCheck):
         }
 
         self.component(self.instance_key, external_id, component_type_obj, data)
+
+        # additional storage table and storage queue components
+        process_storage_services(storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
