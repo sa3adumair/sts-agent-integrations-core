@@ -257,7 +257,7 @@ class AzureWebApp(AgentCheck):
             'service_bus_endpoint': service_bus_namespace.service_bus_endpoint,
             'metric_id': service_bus_namespace.metric_id
         }
-        self.component(self.instance_key, external_id, {"name": "servicebus"}, data)
+        self.component(self.instance_key, external_id, {"name": "servicebus_namespace"}, data)
 
     def process_service_bus_queue(self, service_bus_queue, resource_group_name, service_bus_namespace):
         """
@@ -283,7 +283,7 @@ class AzureWebApp(AgentCheck):
         }
         # TODO maybe put contents of service_bus_queue.count_details to a metric stream
         self.component(self.instance_key, external_id, {"name": "servicebus_queue"}, data)
-        self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
+        self.relation(self.instance_key, service_bus_namespace, external_id, {'name': 'has_servicebus_queue'})
 
     def process_service_bus_topic(self, service_bus_topic, resource_group_name, service_bus_namespace):
         """
@@ -315,7 +315,7 @@ class AzureWebApp(AgentCheck):
         # TODO maybe put contents of service_bus_topic.count_details to a metric stream
         self.component(self.instance_key, external_id, {"name": "servicebus_topic"}, data)
         # relation from topic to namespace
-        self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
+        self.relation(self.instance_key, service_bus_namespace, external_id, {'name': 'has_servicebus_topic'})
 
     def process_storage_account(self, storage_account, resource_group_name):
         """
