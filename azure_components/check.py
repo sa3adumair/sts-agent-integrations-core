@@ -8,6 +8,7 @@ from azure.mgmt.resource import ResourceManagementClient
 
 # project
 from azure.mgmt.servicebus import ServiceBusManagementClient
+from azure.mgmt.storage import StorageManagementClient
 from azure.mgmt.web import WebSiteManagementClient
 from checks import AgentCheck
 
@@ -47,7 +48,7 @@ class AzureWebApp(AgentCheck):
     network_client = NetworkManagementClient(credentials, subscription_id)
     website_client = WebSiteManagementClient(credentials, subscription_id)
     service_bus_client = ServiceBusManagementClient(credentials, subscription_id)
-
+    storage_client = StorageManagementClient(credentials, subscription_id)
 
     def check(self, instance):
         for resource_group in self.resource_client.resource_groups.list():
@@ -77,11 +78,15 @@ class AzureWebApp(AgentCheck):
                 for topic in self.list_service_bus_topics(resource_group_name, service_bus_namespace):
                     self.process_service_bus_topic(topic, resource_group_name, service_bus_namespace)
 
+            # storage accounts (resource type Microsoft.Storage/storageAccounts)
+            for storage_account in self.list_storage_accounts(resource_group_name):
+                self.process_storage_account(storage_account, resource_group_name)
+
+
             # other components, generic handling
             accepted_resource_types = """
             resourceType eq 'microsoft.insights/components'
             or resourceType eq 'Microsoft.Relay/namespaces'
-            or resourceType eq 'Microsoft.Storage/storageAccounts'
             """
             for resource in self.resource_client.resources.list_by_resource_group(resource_group_name, filter=accepted_resource_types):
                 self.process_generic_component(resource, resource_group.name)
@@ -96,7 +101,6 @@ class AzureWebApp(AgentCheck):
         return {
             "microsoft.relay/namespaces": "relay",
             "microsoft.insights/components": "insights",
-            "microsoft.storage/storageaccounts": "storage"
         }.get(resource_type.lower(), None)
 
     def process_generic_component(self, resource, resource_group_name):
@@ -156,6 +160,7 @@ class AzureWebApp(AgentCheck):
     def list_service_bus_queues(self, resource_group_name, namespace_name):
         """
         get list of queues in the service bus namespace of the resource group
+        :param namespace_name: str
         :param resource_group_name: str
         :return: list of azure.mgmt.servicebus.models.sb_queue.SBQueue
         """
@@ -164,11 +169,19 @@ class AzureWebApp(AgentCheck):
     def list_service_bus_topics(self, resource_group_name, namespace_name):
         """
         get list of topics in the service bus namespace of the resource group
-        :param resource_group_name:
-        :param namespace_name:
+        :param resource_group_name: str
+        :param namespace_name: str
         :return: list of azure.mgmt.servicebus.models.sb_topic.SBTopic
         """
         return self.service_bus_client.topics.list_by_namespace(resource_group_name, namespace_name)
+
+    def list_storage_accounts(self, resource_group_name):
+        """
+        get list of storage accounts in the resource group
+        :param resource_group_name: str
+        :return: list of azure.mgmt.storage.v2016_12_01.models.storage_account.StorageAccount'
+        """
+        return self.storage_client.storage_accounts.list_by_resource_group(resource_group_name)
 
     def process_web_app(self, web_app, resource_group_name):
         """
@@ -324,3 +337,28 @@ class AzureWebApp(AgentCheck):
         self.component(self.instance_key, external_id, component_type_obj, data)
         # relation from topic to namespace
         self.relation(self.instance_key, external_id, service_bus_namespace, {'name': 'in_namespace'})
+
+    def process_storage_account(self, storage_account, resource_group_name):
+        """
+        process storage account
+        :param storage_account: azure.mgmt.storage.v2016_12_01.models.storage_account.StorageAccount
+        :param resource_group_name: str
+        :return: nothing
+        """
+        self.log.info("Processing storage account {}".format(storage_account.name))
+        self.log.debug("Storage account information: {}".format(storage_account))
+
+        external_id = storage_account.name
+        data = {
+            'type': storage_account.type,
+            'resource_group': resource_group_name,
+            'primary_location': storage_account.primary_location,
+            'secondary_location': storage_account.secondary_location,
+
+        }
+        # TODO process primary_endpoints and secondary_endpoints?
+        component_type_obj = {
+            "name": "storage_account"
+        }
+
+        self.component(self.instance_key, external_id, component_type_obj, data)
