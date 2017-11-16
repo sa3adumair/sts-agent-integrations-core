@@ -189,16 +189,16 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing web app {}".format(web_app.name))
         self.log.debug("Web app information: {}".format(web_app))
 
-        id = web_app.name
-
+        external_id = web_app.name
         data = {
             'type': web_app.type,
             'location': web_app.location,
             'id': web_app.id,
             'resource_group': resource_group_name,
-            'host_names': web_app.host_names
+            'host_names': web_app.host_names,
+            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), web_app.tags.iteritems()))
         }
-        self.component(self.instance_key, id, {"name": "app"}, data)
+        self.component(self.instance_key, external_id, {"name": "app"}, data)
 
     def process_application_gateway(self, application_gateway, resource_group_name):
         """
