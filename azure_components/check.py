@@ -231,8 +231,10 @@ class AzureWebApp(AgentCheck):
                 # azure.mgmt.network.v2017_03_01.models.application_gateway_backend_address.ApplicationGatewayBackendAddress'
                 if backend_address.ip_address is not None:
                     data['backend_pool'].append({'ip_address': backend_address.ip_address})
+                    self.relation(self.instance_key, external_id, backend_address.ip_address, {"name": "appgateway_backend"})
                 if backend_address.fqdn is not None:
                     data['backend_pool'].append({'fqdn': backend_address.fqdn})
+                    self.relation(self.instance_key, external_id, backend_address.fqdn, {"name": "appgateway_backend"})
 
         self.component(self.instance_key, external_id, {"name": "appgateway"}, data)
 
