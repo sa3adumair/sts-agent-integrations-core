@@ -72,14 +72,14 @@ class AzureWebApp(AgentCheck):
             for service_bus_namespace in self.list_service_bus_namespaces(resource_group_name):
                 self.process_service_bus_namespace(service_bus_namespace, resource_group_name)
 
-                service_bus_namespace = service_bus_namespace.name
+                service_bus_namespace_name = service_bus_namespace.name
 
                 # service bus queues
-                for queue in self.list_service_bus_queues(resource_group_name, service_bus_namespace):
+                for queue in self.list_service_bus_queues(resource_group_name, service_bus_namespace_name):
                     self.process_service_bus_queue(queue, resource_group_name, service_bus_namespace)
 
                 # service bus topics
-                for topic in self.list_service_bus_topics(resource_group_name, service_bus_namespace):
+                for topic in self.list_service_bus_topics(resource_group_name, service_bus_namespace_name):
                     self.process_service_bus_topic(topic, resource_group_name, service_bus_namespace)
 
             # storage accounts (resource type Microsoft.Storage/storageAccounts)
@@ -219,11 +219,11 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing web app {}".format(web_app.name))
         self.log.debug("Web app information: {}".format(web_app))
 
-        external_id = web_app.name
+        external_id = web_app.id
         data = {
+            'name': web_app.name,
             'type': web_app.type,
             'location': web_app.location,
-            'id': web_app.id,
             'resource_group': resource_group_name,
             'host_names': web_app.host_names,
             'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), web_app.tags.iteritems()))
@@ -240,11 +240,11 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing application gateway {}".format(application_gateway.name))
         self.log.debug("Application gateway information: {}".format(application_gateway))
 
-        external_id = application_gateway.name
+        external_id = application_gateway.id
         data = {
+            'name': application_gateway.name,
             'type': application_gateway.type,
             'location': application_gateway.location,
-            'id': application_gateway.id,
             'resource_group': resource_group_name
         }
 
@@ -278,11 +278,11 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing service bus namespace {}".format(service_bus_namespace.name))
         self.log.debug("Service bus namespace information: {}".format(service_bus_namespace))
 
-        external_id = service_bus_namespace.name
+        external_id = service_bus_namespace.id
         data = {
+            'name': service_bus_namespace.name,
             'type': service_bus_namespace.type,
             'location': service_bus_namespace.location,
-            'id': service_bus_namespace.id,
             'resource_group': resource_group_name,
             'service_bus_endpoint': service_bus_namespace.service_bus_endpoint,
             'metric_id': service_bus_namespace.metric_id
@@ -294,16 +294,17 @@ class AzureWebApp(AgentCheck):
         process service bus queue
         :param service_bus_queue: azure.mgmt.servicebus.models.sb_queue.SBQueue
         :param resource_group_name: str
-        :param service_bus_namespace: str
+        :param service_bus_namespace: azure.mgmt.servicebus.models.sb_namespace.SBNamespace
         :return: nothing
         """
         self.log.info("Processing service bus queue {}".format(service_bus_queue.name))
         self.log.debug("Service bus queue information: {}".format(service_bus_queue))
 
-        external_id = service_bus_queue.name
+        external_id = service_bus_queue.id
         data = {
+            'name': service_bus_queue.name,
             'type': service_bus_queue.type,
-            'service_bus_namespace': service_bus_namespace,
+            'service_bus_namespace': service_bus_namespace.name,
             'resource_group': resource_group_name,
             'message_count': service_bus_queue.message_count,
             'requires_duplicate_detection': service_bus_queue.requires_duplicate_detection,
@@ -313,24 +314,24 @@ class AzureWebApp(AgentCheck):
         }
         # TODO maybe put contents of service_bus_queue.count_details to a metric stream
         self.component(self.instance_key, external_id, {"name": "servicebus_queue"}, data)
-        self.relation(self.instance_key, service_bus_namespace, external_id, {'name': 'has_servicebus_queue'})
+        self.relation(self.instance_key, service_bus_namespace.id, external_id, {'name': 'has_servicebus_queue'})
 
     def process_service_bus_topic(self, service_bus_topic, resource_group_name, service_bus_namespace):
         """
         process service bus topic
         :param service_bus_topic: azure.mgmt.servicebus.models.sb_topic.SBTopic
         :param resource_group_name:  str
-        :param service_bus_namespace: str
+        :param service_bus_namespace: azure.mgmt.servicebus.models.sb_namespace.SBNamespace
         :return: nothing
         """
         self.log.info("Processing service bus topic {}".format(service_bus_topic.name))
         self.log.debug("Service bus topic information: {}".format(service_bus_topic))
 
-        external_id = service_bus_topic.name
-
+        external_id = service_bus_topic.id
         data = {
+            'name': service_bus_topic.name,
             'type': service_bus_topic.type,
-            'service_bus_namespace': service_bus_namespace,
+            'service_bus_namespace': service_bus_namespace.name,
             'resource_group': resource_group_name,
             'subscription_count': service_bus_topic.subscription_count,
             'max_size_in_megabytes': service_bus_topic.max_size_in_megabytes,
@@ -345,7 +346,7 @@ class AzureWebApp(AgentCheck):
         # TODO maybe put contents of service_bus_topic.count_details to a metric stream
         self.component(self.instance_key, external_id, {"name": "servicebus_topic"}, data)
         # relation from topic to namespace
-        self.relation(self.instance_key, service_bus_namespace, external_id, {'name': 'has_servicebus_topic'})
+        self.relation(self.instance_key, service_bus_namespace.id, external_id, {'name': 'has_servicebus_topic'})
 
     def process_storage_account(self, storage_account, resource_group_name):
         """
@@ -357,9 +358,10 @@ class AzureWebApp(AgentCheck):
         self.log.info("Processing storage account {}".format(storage_account.name))
         self.log.debug("Storage account information: {}".format(storage_account))
 
-        def process_storage_services(storage_account_name, primary_endpoints, secondary_endpoints):
+        def process_storage_services(storage_account_resource_id, storage_account_name, primary_endpoints, secondary_endpoints):
             """
             process storage service specific information about table and queue service
+            :param storage_account_resource_id: str
             :param primary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
             :param secondary_endpoints: azure.mgmt.storage.v2017_06_01.models.endpoints.Endpoints
             :param storage_account_name: str
@@ -382,13 +384,17 @@ class AzureWebApp(AgentCheck):
                 for queue in cloud_storage_account.create_queue_service().list_queues():
                     # azure.storage.queue.models.Queue
                     self.log.info("Processing queue storage service {}".format(queue.name))
+                    # print(queue)
+                    # exit(0)
+
                     external_id = queue.name
                     data = {
+                        'name': queue.name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.queue, queue.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_queue'}, data)
-                    self.relation(self.instance_key, storage_account_name, external_id, {'name': 'has_storage_queue'})
+                    self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_queue'})
 
                 # tables
                 for table in cloud_storage_account.create_table_service().list_tables():
@@ -396,14 +402,16 @@ class AzureWebApp(AgentCheck):
                     self.log.info("Processing table storage service {}".format(table.name))
                     external_id = table.name
                     data = {
+                        'name': table.name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.table, table.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_table'}, data)
-                    self.relation(self.instance_key, storage_account_name, external_id, {'name': 'has_storage_table'})
+                    self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_table'})
 
-        external_id = storage_account.name
+        external_id = storage_account.id
         data = {
+            'name': storage_account.name,
             'type': storage_account.type,
             'resource_group': resource_group_name,
             'primary_location': storage_account.primary_location,
@@ -424,7 +432,7 @@ class AzureWebApp(AgentCheck):
         self.component(self.instance_key, external_id, {"name": "storage_account"}, data)
 
         # additional storage table and storage queue components
-        process_storage_services(storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
+        process_storage_services(storage_account.id, storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
 
     def process_relay_namespace(self, relay_namespace, resource_group_name):
         """
@@ -437,14 +445,16 @@ class AzureWebApp(AgentCheck):
         self.log.debug("Relay namespace information: {}".format(relay_namespace))
 
         relay_namespace_name = relay_namespace.name
+        relay_namespace_resource_id = relay_namespace.id
 
         for wcf_relay in self.list_wcf_relays(relay_namespace_name, resource_group_name):
             # azure_mgmt.models.wcf_relay.WcfRelay
             self.log.info("Processing WCF relay {}".format(wcf_relay.name))
             self.log.debug("WCF relay information: {}".format(wcf_relay))
 
-            external_id = wcf_relay.name
+            external_id = wcf_relay.id
             data = {
+                'name': wcf_relay.name,
                 'resource_group': resource_group_name,
                 'namespace': relay_namespace_name,
                 'relay_type': 'Http' if wcf_relay.relay_type == wcf_relay.relay_type == Relaytype.http else "NetTcp",
@@ -454,15 +464,16 @@ class AzureWebApp(AgentCheck):
                 'user_metadata': wcf_relay.user_metadata
             }
             self.component(self.instance_key, external_id, {"name": "relay_wcf"}, data)
-            self.relation(self.instance_key, relay_namespace_name, external_id, {"name": "has_relay"})
+            self.relation(self.instance_key, relay_namespace_resource_id, external_id, {"name": "has_relay"})
 
         for hybrid_connection_relay in self.list_hybrid_connections_relays(relay_namespace_name, resource_group_name):
             # azure_mgmt.models.hybrid_connection.HybridConnection
             self.log.info("Processing hybrid connection relay {}".format(hybrid_connection_relay.name))
             self.log.debug("hybrid connection relay information: {}".format(hybrid_connection_relay))
 
-            external_id = hybrid_connection_relay.name
+            external_id = hybrid_connection_relay.id
             data = {
+                'name': hybrid_connection_relay.name,
                 'resource_group': resource_group_name,
                 'namespace': relay_namespace_name,
                 'listener_count': hybrid_connection_relay.listener_count,
@@ -470,10 +481,11 @@ class AzureWebApp(AgentCheck):
                 'user_metadata': hybrid_connection_relay.user_metadata
             }
             self.component(self.instance_key, external_id, {"name": "relay_hybrid_connection"}, data)
-            self.relation(self.instance_key, relay_namespace_name, external_id, {"name": "has_relay"})
+            self.relation(self.instance_key, relay_namespace_resource_id, external_id, {"name": "has_relay"})
 
-        external_id = relay_namespace_name
+        external_id = relay_namespace_resource_id
         data = {
+            'name': relay_namespace_name,
             'resource_group': resource_group_name,
             'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), relay_namespace.tags.iteritems()))
         }
