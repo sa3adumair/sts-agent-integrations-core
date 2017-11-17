@@ -83,6 +83,7 @@ test:
         - rake ci:run[cassandra_nodetool]
         - rake ci:run[azure_components]
         - rake ci:run[azure_metrics]
+        - rake ci:run[azure_alerts]
         - bundle exec rake requirements
     post:
         - if [[ $(docker ps -a -q) ]]; then docker stop $(docker ps -a -q); fi

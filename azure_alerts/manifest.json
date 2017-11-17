@@ -1,0 +1,12 @@
+{
+  "maintainer": "help@datadoghq.com",
+  "manifest_version": "0.1.0",
+  "max_agent_version": "6.0.0",
+  "min_agent_version": "5.6.3",
+  "name": "azure_alerts",
+  "short_description": "azure_alerts description.",
+  "guid": "65275a81-f5bb-4f34-9397-34ff882ea52b",
+  "support": "contrib",
+  "supported_os": ["linux","mac_os","windows"],
+  "version": "0.1.0"
+}
