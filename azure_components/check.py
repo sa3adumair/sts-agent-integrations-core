@@ -384,14 +384,13 @@ class AzureWebApp(AgentCheck):
                 for queue in cloud_storage_account.create_queue_service().list_queues():
                     # azure.storage.queue.models.Queue
                     self.log.info("Processing queue storage service {}".format(queue.name))
-                    # print(queue)
-                    # exit(0)
 
                     external_id = queue.name
                     data = {
                         'name': queue.name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.queue, queue.name),
-                        'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name)
+                        'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name),
+                        'service_id': '{}/services/queue'.format(storage_account.id)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_queue'}, data)
                     self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_queue'})
@@ -404,7 +403,8 @@ class AzureWebApp(AgentCheck):
                     data = {
                         'name': table.name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.table, table.name),
-                        'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name)
+                        'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name),
+                        'service_id': '{}/services/table'.format(storage_account.id)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_table'}, data)
                     self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_table'})
