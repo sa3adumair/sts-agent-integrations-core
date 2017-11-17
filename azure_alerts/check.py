@@ -9,7 +9,6 @@ from azure.mgmt.monitor import MonitorManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from checks import AgentCheck
 from msrestazure.azure_active_directory import ServicePrincipalCredentials
-from msrestazure.azure_exceptions import CloudError
 
 EVENT_TYPE = SOURCE_TYPE_NAME = 'azure_alerts'
 

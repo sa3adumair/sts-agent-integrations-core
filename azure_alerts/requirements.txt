@@ -1,1 +1,3 @@
 # integration pip requirements
+azure-mgmt-resource==1.2.2
+azure-mgmt-monitor==0.4.0

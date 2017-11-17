@@ -2,14 +2,7 @@
 
 ## Overview
 
-Get metrics from azure_alerts service in real time to:
-
-* Visualize and monitor azure_alerts states
-* Be notified about azure_alerts failovers and events.
-
-## Installation
-
-Install the `dd-check-azure_alerts` package manually or with your favorite configuration manager
+Convert Azure incidents, triggered by alert rules, to StackState events.
 
 ## Configuration
 
@@ -17,7 +10,7 @@ Edit the `azure_alerts.yaml` file to point to your server and port, set the mast
 
 ## Validation
 
-When you run `datadog-agent info` you should see something like the following:
+When you run `stackstate-agent info` you should see something like the following:
 
     Checks
     ======
@@ -26,7 +19,3 @@ When you run `datadog-agent info` you should see something like the following:
         -----------
           - instance #0 [OK]
           - Collected 39 metrics, 0 events & 7 service checks
-
-## Compatibility
-
-The azure_alerts check is compatible with all major platforms
