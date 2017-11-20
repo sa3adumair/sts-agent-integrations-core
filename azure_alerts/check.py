@@ -67,22 +67,19 @@ class AzureAlerts(AgentCheck):
                 affected_resource_id = referenced_azure_ids[0]
 
                 # mark affected resource id as seen
-                seen_resource_ids.add(affected_resource_id)
+                seen_resource_ids.add(affected_resource_id.lower())
 
                 if not is_enabled:
                     # no need to process incidents for alerts that are not enabled.
                     continue
 
                 for incident in self.list_alert_rule_incidents(resource_group_name, alert_rule_name):
-                    if not incident.resolved_time:
-                        # we are only interested in unresolved incidents at this point (clear state will be reported later on)
                     if not incident.resolved_time and not incident.is_active:
                         # we are only interested in unresolved, active, incidents at this point (clear state will be reported later on)
                         continue
 
-                    incident_sent_on_resource_ids.add(affected_resource_id)
+                    incident_sent_on_resource_ids.add(affected_resource_id.lower())
                     self.event({
-                        # "timestamp": time.mktime(incident.activated_time.timetuple()),
                         "timestamp": time.time(),
                         "event_type": 'Azure Incident',
                         "msg_title": 'Alert rule {} triggered.'.format(alert_rule_name),
