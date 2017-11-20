@@ -94,8 +94,8 @@ class AzureAlerts(AgentCheck):
                 self.event({
                     "timestamp": time.time(),
                     "event_type": 'Azure Incident',
-                    "msg_title": 'Alert rule {} not triggered.'.format(alert_rule_name),
-                    "msg_text": 'No alerts triggered on {}.'.format(alert_id),
+                    "msg_title": 'No alert rules triggered.',
+                    "msg_text": 'No alerts triggered on resource id {}.'.format(non_affected_resource_id),
                     "alert_type": 'success',
                     "tags": ['affected_resource_id:{}'.format(non_affected_resource_id), 'state:clear']
                 })
