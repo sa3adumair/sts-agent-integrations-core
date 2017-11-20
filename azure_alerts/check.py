@@ -76,6 +76,8 @@ class AzureAlerts(AgentCheck):
                 for incident in self.list_alert_rule_incidents(resource_group_name, alert_rule_name):
                     if not incident.resolved_time:
                         # we are only interested in unresolved incidents at this point (clear state will be reported later on)
+                    if not incident.resolved_time and not incident.is_active:
+                        # we are only interested in unresolved, active, incidents at this point (clear state will be reported later on)
                         continue
 
                     incident_sent_on_resource_ids.add(affected_resource_id)
