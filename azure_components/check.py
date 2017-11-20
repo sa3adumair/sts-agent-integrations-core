@@ -90,25 +90,11 @@ class AzureWebApp(AgentCheck):
             for relay_namespace in self.list_relay_namespaces(resource_group_name):
                 self.process_relay_namespace(relay_namespace, resource_group_name)
 
-            # other components, generic handling
-            accepted_resource_types = """
-            resourceType eq 'microsoft.insights/components'
-            """
-            for resource in self.resource_client.resources.list_by_resource_group(resource_group_name, filter=accepted_resource_types):
-                self.process_generic_component(resource, resource_group.name)
+            # application insights information from resource management client
+            for resource in self.resource_client.resources.list_by_resource_group(resource_group_name, filter="""resourceType eq 'microsoft.insights/components'"""):
+                self.process_application_insights(resource, resource_group.name)
 
-    @staticmethod
-    def map_component_type(resource_type):
-        """
-        map resource type from resource to stackstate component type
-        :param resource_type: str resource type
-        :return: str component_type or None when resource type was not matched
-        """
-        return {
-            "microsoft.insights/components": "insights",
-        }.get(resource_type.lower(), None)
-
-    def process_generic_component(self, resource, resource_group_name):
+    def process_application_insights(self, resource, resource_group_name):
         """
         process generic component
         :param component_type: str
@@ -116,22 +102,27 @@ class AzureWebApp(AgentCheck):
         :param resource_group_name: str
         :return: nothing
         """
-        self.log.info("Processing generic component {} with type {}".format(resource.name, resource.type))
-        self.log.debug("Generic component information: {}".format(resource))
+        self.log.info("Processing application insights {}".format(resource.name))
+        self.log.debug("Application insights information: {}".format(resource))
 
-        component_type = self.map_component_type(resource.type)
-        if component_type is None:
-            self.log.info("Skipping unhandled resource type, got: {}".format(resource.type))
-            return
-
-        external_id = resource.name
+        external_id = resource.id
         data = {
+            'name': resource.name,
             'type': resource.type,
             'location': resource.location,
-            'id': resource.id,
-            'resource_group': resource_group_name
+            'resource_group': resource_group_name,
+            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), resource.tags.iteritems())) # hidden-related -> app service link
         }
-        self.component(self.instance_key, external_id, {"name": component_type}, data)
+
+        # component
+        self.component(self.instance_key, external_id, {"name": 'application_insights'}, data)
+
+        # relation: resource -> application insights
+        tags = resource.tags
+        tags_hidden_link_list = filter(lambda (k, v): k.startswith('hidden-link:') and v == "Resource", tags.iteritems())  # fetch tags where key matched 'hidden-link:' and value is 'Resource'
+        referenced_azure_ids = map(lambda (k, v): k.lstrip("hidden-link:"), tags_hidden_link_list)  # strip off 'hidden-link' from tag key to get referenced azure resource id
+        map(lambda referenced_azure_id: self.relation(self.instance_key, referenced_azure_id, external_id, {'name': 'uses_application_insights'}), referenced_azure_ids)
+
 
     def list_web_apps(self, resource_group_name):
         """
@@ -226,7 +217,7 @@ class AzureWebApp(AgentCheck):
             'location': web_app.location,
             'resource_group': resource_group_name,
             'host_names': web_app.host_names,
-            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), web_app.tags.iteritems()))
+            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), web_app.tags.iteritems())) # hidden-related -> serviceplan/farm
         }
         self.component(self.instance_key, external_id, {"name": "app"}, data)
 
