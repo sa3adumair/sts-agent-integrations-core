@@ -115,6 +115,7 @@ env:
     - TRAVIS_FLAVOR=azure_components FLAVOR_VERSION=latest
     - TRAVIS_FLAVOR=azure_metrics FLAVOR_VERSION=latest
     - TRAVIS_FLAVOR=azure_alerts FLAVOR_VERSION=latest
+    - TRAVIS_FLAVOR=azure_dependencies FLAVOR_VERSION=latest
     # END OF TRAVIS MATRIX
 
 install:
