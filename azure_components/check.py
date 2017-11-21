@@ -111,7 +111,7 @@ class AzureWebApp(AgentCheck):
             'type': resource.type,
             'location': resource.location,
             'resource_group': resource_group_name,
-            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-related'), resource.tags.iteritems())) # hidden-related -> app service link
+            'tags': dict(filter(lambda (k, v): not k.startswith('hidden-link'), resource.tags.iteritems())) # hidden-link -> referenced azure resource
         }
 
         # component
