@@ -379,6 +379,7 @@ class AzureWebApp(AgentCheck):
                     external_id = 'storage.{}.queue.{}'.format(storage_account_name, queue.name)
                     data = {
                         'name': queue.name,
+                        'storage_account_name': storage_account_name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.queue, queue.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name),
                         'service_id': '{}/services/queue'.format(storage_account.id)
@@ -393,6 +394,7 @@ class AzureWebApp(AgentCheck):
                     external_id = 'storage.{}.table.{}'.format(storage_account_name, table.name)
                     data = {
                         'name': table.name,
+                        'storage_account_name': storage_account_name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.table, table.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name),
                         'service_id': '{}/services/table'.format(storage_account.id)
