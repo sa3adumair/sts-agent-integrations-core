@@ -380,7 +380,7 @@ class AzureWebApp(AgentCheck):
 
                     external_id = 'storage.{}.queue.{}'.format(storage_account_name, queue.name)
                     data = {
-                        'name': queue.name,
+                        'name': '{}.{}'.format(storage_account_name, queue.name),
                         'storage_account_name': storage_account_name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.queue, queue.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.queue, queue.name),
@@ -395,7 +395,7 @@ class AzureWebApp(AgentCheck):
                     self.log.info("Processing table storage service {}".format(table.name))
                     external_id = 'storage.{}.table.{}'.format(storage_account_name, table.name)
                     data = {
-                        'name': table.name,
+                        'name': '{}.{}'.format(storage_account_name, table.name),
                         'storage_account_name': storage_account_name,
                         'primary_endpoint': "{}{}".format(primary_endpoints.table, table.name),
                         'secondary_endpoint': "{}{}".format(secondary_endpoints.table, table.name),
