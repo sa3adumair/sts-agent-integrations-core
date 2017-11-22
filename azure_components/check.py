@@ -392,7 +392,7 @@ class AzureWebApp(AgentCheck):
                         'service_id': '{}/services/queue'.format(storage_account.id)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_queue'}, data)
-                    self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_queue'})
+                    # self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_queue'})
 
                 # tables
                 for table in cloud_storage_account.create_table_service().list_tables():
@@ -408,29 +408,29 @@ class AzureWebApp(AgentCheck):
                         'service_id': '{}/services/table'.format(storage_account.id)
                     }
                     self.component(self.instance_key, external_id, {'name': 'storage_table'}, data)
-                    self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_table'})
+                    # self.relation(self.instance_key, storage_account_resource_id, external_id, {'name': 'has_storage_table'})
 
-        external_id = storage_account.id
-        data = {
-            'name': storage_account.name,
-            'type': storage_account.type,
-            'resource_group': resource_group_name,
-            'primary_location': storage_account.primary_location,
-            'secondary_location': storage_account.secondary_location,
-            'primary_endpoints': {
-                'queue': storage_account.primary_endpoints.queue,
-                'table': storage_account.primary_endpoints.table,
-                'blob': storage_account.primary_endpoints.blob,
-                'file': storage_account.primary_endpoints.file
-            },
-            'secondary_endpoints': {
-                'queue': storage_account.secondary_endpoints.queue,
-                'table': storage_account.secondary_endpoints.table,
-                'blob': storage_account.secondary_endpoints.blob,
-                'file': storage_account.secondary_endpoints.file
-            }
-        }
-        self.component(self.instance_key, external_id, {"name": "storage_account"}, data)
+        # external_id = storage_account.id
+        # data = {
+        #     'name': storage_account.name,
+        #     'type': storage_account.type,
+        #     'resource_group': resource_group_name,
+        #     'primary_location': storage_account.primary_location,
+        #     'secondary_location': storage_account.secondary_location,
+        #     'primary_endpoints': {
+        #         'queue': storage_account.primary_endpoints.queue,
+        #         'table': storage_account.primary_endpoints.table,
+        #         'blob': storage_account.primary_endpoints.blob,
+        #         'file': storage_account.primary_endpoints.file
+        #     },
+        #     'secondary_endpoints': {
+        #         'queue': storage_account.secondary_endpoints.queue,
+        #         'table': storage_account.secondary_endpoints.table,
+        #         'blob': storage_account.secondary_endpoints.blob,
+        #         'file': storage_account.secondary_endpoints.file
+        #     }
+        # }
+        # self.component(self.instance_key, external_id, {"name": "storage_account"}, data)
 
         # additional storage table and storage queue components
         process_storage_services(storage_account.id, storage_account.name, storage_account.primary_endpoints, storage_account.secondary_endpoints)
