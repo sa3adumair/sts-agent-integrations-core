@@ -221,7 +221,7 @@ class AzureWebApp(AgentCheck):
         }
         self.component(self.instance_key, external_id, {"name": "app"}, data)  # host_names will be added to the identifier list for component type 'app'
         for host_name in web_app.host_names:
-            self.component(self.instance_key, host_name, {"name": "app"}, {'name': web_app.name})  # external id is required to map depenencies (identifiers in id extractor is not the same as internalIds used in resolving components)
+            self.component(self.instance_key, host_name, {"name": "app-unmapped"}, {'name': web_app.name})  # external id is required to map depenencies (identifiers in id extractor is not the same as internalIds used in resolving components)
 
     def process_application_gateway(self, application_gateway, resource_group_name):
         """
