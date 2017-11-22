@@ -85,7 +85,7 @@ class AzureAlerts(AgentCheck):
                         "msg_title": 'Alert rule {} triggered.'.format(alert_rule_name),
                         "msg_text": 'Incident reported on rule name {} affecting resource id {}. Activated: {}'.format(incident.rule_name, affected_resource_id, str(incident.activated_time)),
                         "alert_type": 'error',
-                        "tags": ['rule_name:{}'.format(incident.rule_name), 'affected_resource_id:{}'.format(affected_resource_id), 'state:critical']
+                        "tags": ['rule_name:{}'.format(incident.rule_name), 'affected_resource_id:{}'.format(affected_resource_id), 'state:deviating']
                     })
 
             # send clear state to seen resources excluding sources that have triggered alert rules / incidents
