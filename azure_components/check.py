@@ -242,9 +242,13 @@ class AzureWebApp(AgentCheck):
         }
 
         # front end public ip
-        public_ip = self.network_client.public_ip_addresses.get(resource_group_name, application_gateway.name)
-        # azure.mgmt.network.v2017_03_01.models.public_ip_address.PublicIPAddress
-        data.update({"front_end_ip": public_ip.ip_address})
+        frontend_ips = []
+        for frontend_ip_config in application_gateway.frontend_ip_configurations:
+            public_ip_address_name = frontend_ip_config.public_ip_address.id
+            resource = self.resource_client.resources.get_by_id(public_ip_address_name, '2017-10-01')
+            frontend_ip = resource.properties['ipAddress']
+            frontend_ips.append(frontend_ip)
+        data.update({"frontend_ips": frontend_ips})
 
         # back end address(es)
         data.update({'backend_pool': []})
