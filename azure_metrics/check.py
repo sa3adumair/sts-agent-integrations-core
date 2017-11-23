@@ -70,6 +70,10 @@ class Azure_metricsCheck(AgentCheck):
             start_time = end_time - datetime.timedelta(hours=1)
             time_grain = "PT1H"  # 1 minute is minimal, PT1M
 
+            # poor man's filter to limit intake
+            if metric_name != "ConnectionsOpened":
+                continue
+
             filter = " and ".join([
                 "name.value eq '{}'".format(metric_name),
                 "startTime eq {}".format(start_time.strftime("%Y-%m-%dT%H:%M:%S.%f")),
