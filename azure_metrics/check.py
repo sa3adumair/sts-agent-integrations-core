@@ -49,30 +49,26 @@ class Azure_metricsCheck(AgentCheck):
         webapp = "NuonCoreWebDemo20171109110132"
         webapp_provider = "Microsoft.Web/sites/{}".format(webapp)
 
-        # Get the ARM id of your resource. You might chose to do a "get"
-        # using the according management or to build the URL directly
-        # Example for a ARM VM
+        service_bus = "nuonpocsb"
+        servicebus_provider = "Microsoft.ServiceBus/namespaces/{}".format(service_bus)
+
         resource_id = (
-            "subscriptions/{}/"
-            "resourceGroups/{}/"
-            "providers/{}"
-        ).format(self.subscription_id, self.resource_group_name, webapp_provider)
+            "/subscriptions/{}"
+            "/resourceGroups/{}"
+            "/providers/{}"
+        # ).format(self.subscription_id, self.resource_group_name, webapp_provider)
+        ).format(self.subscription_id, self.resource_group_name, servicebus_provider)
 
         self.log.debug("Resource id: {}.".format(resource_id))
 
         # get the available metrics of this specific resource
         for metric in client.metric_definitions.list(resource_id):
             # # azure.monitor.models.MetricDefinition
-            # print("{}: id={}, unit={}".format(
-            #     metric.name.localized_value,
-            #     metric.name.value,
-            #     metric.unit
-            # ))
 
             metric_name = metric.name.value
             end_time = datetime.datetime.utcnow()
             start_time = end_time - datetime.timedelta(hours=1)
-            time_grain = "PT1M"  # 1 minute is minimal
+            time_grain = "PT1H"  # 1 minute is minimal, PT1M
 
             filter = " and ".join([
                 "name.value eq '{}'".format(metric_name),
@@ -87,7 +83,6 @@ class Azure_metricsCheck(AgentCheck):
             )
 
             for item in metrics_data:
-                print(item.id)
                 # azure.monitor.models.Metric
                 for data in item.data:
                     metric = None
@@ -103,4 +98,4 @@ class Azure_metricsCheck(AgentCheck):
                     if metric is not None:
                         # TODO can't use the data's timestamp because it is pruned by the agent, more than a hour old?
                         # self.gauge(metric_name, data.total, hostname=webapp_provider, timestamp=data.time_stamp.strftime("%s"))
-                        self.gauge(metric_name, metric, hostname=webapp_provider)
+                        self.gauge(metric_name, metric, hostname=resource_id)
